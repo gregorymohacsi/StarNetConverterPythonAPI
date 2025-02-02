@@ -1,4 +1,5 @@
-from flask import Flask, request, send_file
+# Update app.py to add root route
+from flask import Flask, request, send_file, render_template
 from flask_cors import CORS
 import os
 import traceback
@@ -7,12 +8,25 @@ from starnet_converter import converter
 from starnet_cleanup import clean_output
 import tempfile
 
-app = Flask(__name__)
-CORS(app)
-
-# Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+app = Flask(__name__, static_folder='static')
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["http://localhost:5000", "https://starnetconverterpythonapi.onrender.com"],
+        "methods": ["POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
+
+@app.route('/')
+def index():
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/<path:path>')
+def static_files(path):
+    return send_from_directory(app.static_folder, path)
 
 @app.route('/api/process-file', methods=['POST'])
 def process_file():

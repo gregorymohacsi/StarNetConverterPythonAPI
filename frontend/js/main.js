@@ -1,7 +1,6 @@
-// Define the API URL based on environment
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000/process-file'
-    : '/api/process-file';  // This will be the Vercel API route
+    ? 'http://localhost:5000/api/process-file'
+    : '/api/process-file';
 
 async function processFile() {
     const fileInput = document.getElementById('fileInput');
@@ -14,7 +13,6 @@ async function processFile() {
 
     const file = fileInput.files[0];
     
-    // Check if file has .rpt extension
     if (!file.name.toLowerCase().endsWith('.rpt')) {
         showStatus('Please select a .rpt file', 'error');
         return;
@@ -32,27 +30,25 @@ async function processFile() {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`Server error: ${errorText}`);
         }
 
-        // Get the filename from the Content-Disposition header if available
-        const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = 'processed_file';
-        if (contentDisposition) {
-            const match = contentDisposition.match(/filename="(.+)"/);
-            if (match) {
-                filename = match[1];
-            }
-        }
-
-        // Create a blob from the response
-        const blob = await response.blob();
+        // Check response headers
+        console.log('Response headers:', [...response.headers.entries()]);
         
-        // Create a download link
+        const blob = await response.blob();
+        console.log('Response blob size:', blob.size);
+        
+        if (blob.size === 0) {
+            throw new Error('Received empty file from server');
+        }
+
+        // Create download link
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = filename;
+        a.download = getFilename(response) || 'processed_file.txt';
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -60,8 +56,20 @@ async function processFile() {
 
         showStatus('File processed successfully!', 'success');
     } catch (error) {
+        console.error('Processing error:', error);
         showStatus(`Error: ${error.message}`, 'error');
     }
+}
+
+function getFilename(response) {
+    const disposition = response.headers.get('content-disposition');
+    if (!disposition) return null;
+    
+    const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+    if (matches != null && matches[1]) {
+        return matches[1].replace(/['"]/g, '');
+    }
+    return null;
 }
 
 function showStatus(message, type) {

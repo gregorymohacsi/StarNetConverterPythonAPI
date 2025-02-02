@@ -1,3 +1,8 @@
+// Define the API URL based on environment
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000/process-file'
+    : '/api/process-file';  // This will be the Vercel API route
+
 async function processFile() {
     const fileInput = document.getElementById('fileInput');
     const statusDiv = document.getElementById('status');
@@ -21,7 +26,7 @@ async function processFile() {
     showStatus('Processing...', '');
 
     try {
-        const response = await fetch('http://localhost:5000/process-file', {
+        const response = await fetch(API_URL, {
             method: 'POST',
             body: formData
         });

@@ -9,4 +9,5 @@ if __name__ == '__main__':
     )
     
     app = create_app()
-    app.run(debug=True, port=5000)
+    app.run()
+    #app.run(debug=True, port=5000)

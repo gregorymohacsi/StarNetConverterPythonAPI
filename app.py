@@ -2,10 +2,11 @@ from flask import Flask, request, send_file
 from flask_cors import CORS
 import os
 import logging
-from starnet_converter import converter
-from starnet_cleanup import clean_output
+from backend.starnet_converter import converter
+from backend.starnet_cleanup import clean_output
 import tempfile
 import traceback
+
 
 def create_app():
     app = Flask(__name__)
@@ -84,3 +85,14 @@ def create_app():
                         logger.error(f'Error deleting temporary file {temp_file}: {str(e)}')
 
     return app
+
+if __name__ == '__main__':
+    # Set up logging
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    app = create_app()
+    app.run()
+    #app.run(debug=True, port=5000)

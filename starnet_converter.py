@@ -1,5 +1,5 @@
 import re
-import backend.starnet_cleanup
+import starnet_cleanup
 
 
 def converter(in_file: str, out_file: str):

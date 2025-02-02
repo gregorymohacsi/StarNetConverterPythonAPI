@@ -1,98 +1,73 @@
 from flask import Flask, request, send_file
 from flask_cors import CORS
 import os
-import logging
-from backend.starnet_converter import converter
-from backend.starnet_cleanup import clean_output
-import tempfile
 import traceback
+from starnet_converter import converter
+from starnet_cleanup import clean_output
+import tempfile
 
+# Create the Flask application
+app = Flask(__name__)
+CORS(app)
+app.debug = True  # Enable debug mode
 
-def create_app():
-    app = Flask(__name__)
-    CORS(app)  # Enable CORS for all routes
-
-    # Set up logging
-    logging.basicConfig(level=logging.DEBUG)
-    logger = app.logger
-
-    @app.route('/process-file', methods=['POST'])
-    def process_file():
-        logger.debug('Process file endpoint called')
-        if 'file' not in request.files:
-            logger.error('No file part in request')
-            return 'No file part', 400
-        
-        file = request.files['file']
-        if file.filename == '':
-            logger.error('No selected file')
-            return 'No selected file', 400
-        
-        logger.debug(f'Processing file: {file.filename}')
-        input_file = None
-        converter_output = None
-        final_output = None
-
-        try:
-            # Create temporary files for processing
-            input_file = tempfile.NamedTemporaryFile(delete=False, suffix='_input.rpt')
+@app.route('/process-file', methods=['POST'])
+def process_file():
+    if 'file' not in request.files:
+        return 'No file part', 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return 'No selected file', 400
+    
+    input_file_path = None
+    converter_output = None
+    final_output = None
+    
+    try:
+        # Create temporary files for processing
+        with tempfile.NamedTemporaryFile(delete=False, suffix='_input.rpt') as input_file:
             input_file_path = input_file.name
-            logger.debug(f'Created temporary input file: {input_file_path}')
-            
-            # Save uploaded file
             file.save(input_file_path)
-            logger.debug('File saved successfully')
+            print(f"File saved to: {input_file_path}")  # Debug print
             
-            # Create temporary filenames for the outputs
-            converter_output = input_file_path + '_converted'
-            final_output = converter_output + '_cleaned'
-            logger.debug(f'Output paths: converter={converter_output}, final={final_output}')
-            
-            # Process the file through conversion
-            logger.debug('Starting conversion process')
-            converter(input_file_path, converter_output)
-            logger.debug('Conversion completed')
-            
-            # Process through cleanup
-            logger.debug('Starting cleanup process')
-            clean_output(converter_output, final_output)
-            logger.debug('Cleanup completed')
-            
-            if not os.path.exists(final_output):
-                raise FileNotFoundError(f'Final output file not created: {final_output}')
-            
-            logger.debug('Sending file back to client')
-            return send_file(
-                final_output,
-                as_attachment=True,
-                download_name=os.path.basename(file.filename).replace('.rpt', '_processed.txt')
-            )
-            
-        except Exception as e:
-            logger.error('Error during processing:')
-            logger.error(traceback.format_exc())
-            return f'Error processing file: {str(e)}\n{traceback.format_exc()}', 500
-            
-        finally:
-            # Clean up temporary files
-            logger.debug('Cleaning up temporary files')
-            for temp_file in [input_file_path, converter_output, final_output]:
-                if temp_file and os.path.exists(temp_file):
-                    try:
-                        os.unlink(temp_file)
-                        logger.debug(f'Deleted temporary file: {temp_file}')
-                    except Exception as e:
-                        logger.error(f'Error deleting temporary file {temp_file}: {str(e)}')
-
-    return app
+        # Create temporary filenames for the intermediate and final output
+        converter_output = input_file_path + '_converted'
+        final_output = converter_output + '_cleaned'
+        print(f"Output paths: {converter_output}, {final_output}")  # Debug print
+        
+        # Process the file through both scripts
+        print("Starting conversion...")  # Debug print
+        converter(input_file_path, converter_output)  # First conversion
+        print("Conversion complete")  # Debug print
+        
+        clean_output(converter_output, final_output)  # Cleanup
+        print("Cleanup complete")  # Debug print
+        
+        if not os.path.exists(final_output):
+            raise FileNotFoundError(f"Final output file not created at {final_output}")
+        
+        # Send the processed file back to the client
+        return send_file(
+            final_output,
+            as_attachment=True,
+            download_name=os.path.basename(file.filename).replace('.rpt', '_processed.txt')
+        )
+        
+    except Exception as e:
+        print("Error occurred:")  # Debug print
+        print(traceback.format_exc())  # This will print the full error traceback
+        return f'Error processing file: {str(e)}\n{traceback.format_exc()}', 500
+        
+    finally:
+        # Clean up temporary files
+        for filepath in [input_file_path, converter_output, final_output]:
+            if filepath and os.path.exists(filepath):
+                try:
+                    os.unlink(filepath)
+                    print(f"Cleaned up: {filepath}")  # Debug print
+                except Exception as e:
+                    print(f"Error cleaning up {filepath}: {str(e)}")  # Debug print
 
 if __name__ == '__main__':
-    # Set up logging
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
-    app = create_app()
-    app.run()
-    #app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000)

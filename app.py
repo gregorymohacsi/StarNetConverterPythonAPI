@@ -1,5 +1,5 @@
 # Update app.py to add root route
-from flask import Flask, request, send_file, render_template
+from flask import Flask, request, send_file, send_from_directory
 from flask_cors import CORS
 import os
 import traceback
